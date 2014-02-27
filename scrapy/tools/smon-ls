@@ -1,0 +1,75 @@
+#!/usr/bin/env python
+
+"""\
+List running spiders.
+"""
+
+import sys
+import socket
+import urllib2
+from optparse import OptionParser
+
+from smon_utils import webread, get_spiders, get_jobs
+
+
+def main():
+    usage = """smon ls [<args>] <command>
+
+where command is one of the following:
+    spiders  List name of the spiders
+    jobs     Get list of running jobs
+    stats    Get statistics data (number of log lines, etc)
+
+If no command is specified, "jobs" is understood."""
+
+    parser = OptionParser(usage=usage, description=__doc__)
+    add = parser.add_option  # short notation
+
+    add('--filter', help='Show results only for spiders (comma-separated list)')
+    add('--silent', action='store_true', help='Supress verbose messages.')
+
+    opts, args = parser.parse_args()
+
+    if len(args) > 1:
+        parser.print_help()
+        sys.exit(1)
+
+    command = args[0] if args else 'jobs'
+
+    def log(txt):
+        if not opts.silent:
+            print txt
+
+    if command == 'spiders':
+        log('Reading list of available spiders...')
+        # If we only want the names of the spiders, ask scrapy server directly.
+        print '\n'.join(get_spiders())
+    elif command == 'jobs':
+        log('Reading job ids of running spiders...')
+        for x in get_jobs():
+            if not opts.filter or x['spider'] in opts.filter.split(','):
+                print x['id'], x['spider']
+    elif command == 'stats':
+        # Read description of all the spiders and their data.
+        log('Reading names of active spiders...')
+
+        subdirs_spiders = webread('info').items()
+        subdirs_spiders.sort()
+
+        log('Extracting information for all spiders...')
+
+        for subdir,spider in subdirs_spiders:
+            if not opts.filter or spider in opts.filter.split(','):
+                print '  %-20s  %s' % (spider, webread('data/%s' % subdir))
+    else:
+        sys.exit('smon-ls: \'%s\' is not a smon-ls command. ' \
+                     'See \'smon ls --help\'.' % command)
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except socket.timeout as e:
+        sys.exit('Error: timed out while connecting to web server. Try again?')
+    except urllib2.URLError as e:
+        sys.exit('Error: %s\nMaybe scrapy server is not running?' % e)

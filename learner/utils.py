@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import binascii, bson, threading, sys, urllib, urllib2, gzip, StringIO, string
+import binascii, bson, threading, sys, urllib, urllib2, gzip, StringIO, string, os
 import socket, time, httplib, re
 from base64 import b64decode, b32decode
 from meta import tags
@@ -9,7 +9,7 @@ from bencode import bdecode, bencode
 from hashlib import sha1
 
 config = {}
-execfile("learn.conf", config)
+execfile(os.path.join(os.path.dirname(__file__),"learn.conf"), config)
 secret = config['secret_url']
 
 def strip_tags (text):

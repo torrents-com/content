@@ -1,0 +1,20 @@
+Description
+-----------
+
+This set of utilities help control and supervise the spiders running
+with scrapy.
+
+They all have the form "smon <command>". Use "smon --help" for a
+description.
+
+
+Install
+-------
+
+$ python setup.py install --prefix=whereveryouwantit
+
+
+Create source package
+---------------------
+
+$ python setup.py sdist

@@ -1,0 +1,12 @@
+*.log
+*.log.20*
+*.pyc
+*.json
+deploy.sh
+tools/build
+torrents/*.properties
+torrents/.scrapy
+torrents/build
+torrents/dbs
+torrents/project.egg-info
+torrents/setup.py

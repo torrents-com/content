@@ -1,0 +1,60 @@
+#!/usr/bin/env python
+
+"""
+smon: Scrapy MONitor.
+
+List running spiders, get statistics, schedule new spiders, etc.
+"""
+
+import sys, os
+
+
+# Available commands & usage.
+
+commands = 'ls add schedule rm cancel'.split()
+
+usage = """usage: smon <command> [<args>]
+
+where command is one of the following:
+  ls               List running spiders
+  add | schedule   Launch a spider
+  rm  | cancel     Remove a spider
+
+The environment variable SMON_URLBASE changes the url to use when
+connecting to the scrapy webserver.
+
+See 'smon help <command>' for more information on a specific command."""
+
+
+# Read command and check that it is valid.
+
+if len(sys.argv) < 2:
+    sys.exit(usage)
+
+command = sys.argv[1]
+
+if command not in commands and command not in ['help', '--help']:
+    sys.exit('smon: \'%s\' is not a smon command. See \'smon --help\'.' % \
+                 command)
+
+
+# Aliases.
+
+if command == 'schedule':
+    command = 'add'
+
+if command == 'cancel':
+    command = 'rm'
+
+
+# Show help or launch the command.
+
+if command == 'help' or command == '--help':
+    if len(sys.argv) == 2:
+        print usage
+        sys.exit()
+    else:
+        os.system('smon-%s --help' % sys.argv[2])
+else:
+    path = filter(os.path.exists, (x+'/smon-'+command for x in sys.path))[0]
+    os.execv(path, [path] + sys.argv[2:])

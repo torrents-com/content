@@ -1,0 +1,52 @@
+#!/usr/bin/env python
+
+"""
+Cancel running spider(s).
+"""
+
+import sys
+import socket
+import urllib2
+from argparse import ArgumentParser
+
+import smon_utils
+
+
+def main():
+    parser = ArgumentParser(description=__doc__)
+    add = parser.add_argument  # short notation
+    add('spiders', metavar='spider', nargs='*', help='jid or spider')
+    add('--all', action='store_true', help='stop all spiders')
+    add('--silent', action='store_true', help='be less verbose')
+
+    args = parser.parse_args()
+
+    if (not args.spiders and not args.all) or (args.spiders and args.all):
+        print 'Either --all or a list of jids/spiders must be passed'
+        parser.print_usage()
+        sys.exit(1)
+
+    try:
+        if args.spiders:
+            spiders = args.spiders
+        else:
+            spiders = [x['id'] for x in smon_utils.get_jobs()]
+
+        for jid_or_spider in spiders:
+            if not args.silent:
+                print 'Removing jid or spider %s ...' % jid_or_spider
+
+            smon_utils.rm(jid_or_spider)
+    except socket.timeout as e:
+        print >>sys.stderr, \
+            'Error: timed out while connecting to web server. Try again?'
+    except RuntimeError as e:
+        print >>sys.stderr, e
+
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except urllib2.URLError as e:
+        sys.exit('Error: %s\nMaybe scrapy server is not running?' % e)
