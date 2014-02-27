@@ -57,9 +57,6 @@ class DiscoverSpider(TorrentsSpider):
             if "http://%s"%store in self.start_urls:
                 self.start_urls = ",".join(self.start_urls).replace("http://%s,"%store,"").split(",")
                 
-        self.start_urls += ",http://www.bing.com/search?q=torrent&first=%d1,http://www.bing.com/search?q=torrent&first=%d1" % (randrange(10), randrange(10)) 
-        self.start_urls += ",https://search.yahoo.com/search?ei=UTF-8&p=torrent&n=100,https://search.yahoo.com/search?ei=UTF-8&p=torrents&n=100"
-        
         #ensure table domain
         for src in self.tbl_src:
             self.save_domain(src)
