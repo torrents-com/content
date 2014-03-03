@@ -59,7 +59,10 @@ def torrent_info(content_raw):
 
     # Fill dirs, paths and sizes, for single- and multiple-file torrents
     if 'files' in t_info:  # multiple files
-        info['filedir'] = get8(t_info, 'name').decode('utf-8')
+        try:
+            info['filedir'] = get8(t_info, 'name').decode('utf-8')
+        except UnicodeDecodeError:
+            pass
         paths = ['/'.join(map(str, get8(f, 'path'))) for f in t_info['files']]
         # The "map(str, ...)" is due to torrents with numeric directories (!)
         sizes = [f['length'] for f in t_info['files']]
@@ -79,10 +82,16 @@ def torrent_info(content_raw):
 
     # Add comment if present
     if 'comment' in torrent:
-        comment = get8(torrent, 'comment').decode('utf-8')
+        try:
+            comment = get8(torrent, 'comment').decode('utf-8')
+        except UnicodeDecodeError:
+            comment = get8(torrent, 'comment')
+            
         for k,v in [('\r\n', '<br />'), ('\n', '<br />'), ('\t', ' ')]:
             comment = comment.replace(k, v)
         info['comment'] = comment
+        
+            
 
     # Add creation date if present
     if 'creation date' in torrent:

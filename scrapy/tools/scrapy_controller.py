@@ -1,11 +1,13 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 """
 Check the status of the scrapy processes and launch/stop them as
 necessary.
 
 """
-import logging, os, pymongo, sys
+import logging, os, pymongo, sys, shutil
+
 import smon_utils
 
 from ConfigParser import ConfigParser
@@ -51,9 +53,7 @@ def main():
     except Exception as e:
         logging.error('Unhandled exception. I will send an email ' \
                           'and stop now. Exception was: %s' % e)
-        smon_utils.email("""%s
-
-An unhandled exception made scrapy_controller.py stop. Auch.""" % e)
+        raise
         sys.exit(1)
     
     
@@ -65,6 +65,19 @@ def launch(spider, running, ok = True):
     launch = [i for i in ds if ds[i] == ok and not i.replace(".","_") in running]
     print launch
     start_urls = []
+    site_launched = []
+    site_last_launched = []
+    if spider == "site":
+        
+        path_launched = os.path.join(os.path.dirname(__file__), "site_running")
+        try:
+            f = open(path_launched,"r")
+            site_last_launched = f.read().split(",")
+            f.close()
+        except IOError:
+            pass
+            
+    
     
     for l in launch:
         if spider == "multisite":
@@ -74,12 +87,41 @@ def launch(spider, running, ok = True):
             
             params = ["start_urls=http://%s"%l]
             if spider == "site":
+                
                 jobdir = os.path.join(os.path.dirname(__file__),"../torrents/state/%s/"%l)
+                
+                #si fue lanzado en la anterior elimina estado
+                if l in site_last_launched:
+                    shutil.rmtree(jobdir)
+                    print "Estado de %s reiniciado" % l
+                    exit()
+                else:
+                    site_launched.append(l)
+                
                 if not os.path.exists(jobdir):
                     os.makedirs(jobdir)
                 params.append("setting=JOBDIR=%s"%jobdir)
+                
+                
+            
             
             smon_utils.add(spider, params)
+    
+    #guarda registro de lo lanza en cada ejecución. 
+    #Si tiene que lanzar 2 veces el mismo es porque hay que reiniciar estado
+    #Finalizado o algún error
+    if spider == "site":
+        f = open(path_launched,"w")
+        f.write(",".join(site_launched))
+        f.close()
+    
+    
+    if ok and spider == "site":
+        stop = [i for i in ds if not ds[i] and i.replace(".","_") in running]
+        for l in stop:
+            print "parando %s_%s" %(spider, l)
+            smon_utils.rm("site_%s" % l.replace(".","_"))
+            
     
     if spider == "multisite":
         print "lanzando %s_%s" %(spider, ",".join(start_urls))

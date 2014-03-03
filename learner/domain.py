@@ -194,13 +194,14 @@ class Domain(object):
             if len(re.findall(r"[\w']+", url.replace(self.base_url,"").replace("_"," "))) < 5:
                 self.logger.info("bad pocas palabras:%s"%(url))
                 bads.append(url)
-            
-            
-        if bads:
-            for b in bads:
-                if b in self.urls_torrent_page:
-                    del self.urls_torrent_page[b]
-            return False
+        
+        #Si todas son malas no se va a poder hacer nada mejor, se deja pasar
+        if len(bads) < self.num_candidates:
+            if bads:
+                for b in bads:
+                    if b in self.urls_torrent_page:
+                        del self.urls_torrent_page[b]
+                return False
         
         return True
         
@@ -1071,9 +1072,7 @@ if __name__ == "__main__":
             d.learn()
     else:
         try:
-            for domain in db_conn.torrents.domain.find():
-                print domain['_id'], db_conn.torrents.domain.count()
-                
+            for domain in db_conn.torrents.domain.find():                
                 if 'ls' in domain and (datetime.now() - domain['ls']).days < 2:
                     print "Ignorando %s por haberlo intentado hace poco" % domain['_id']
                     continue
@@ -1092,8 +1091,8 @@ if __name__ == "__main__":
                     if not domain['_id'] in url:
                         print u"Ignorando %s por redireccionar a otro dominio " % domain['_id']
                         domain_id = url.split("://")[1].replace("www.","")
-                        if not db_conn.torrents.domain.find_one({"_id":domain_id):
-                            db_conn.torrents.domain.save({"_id":domain_id)
+                        if not db_conn.torrents.domain.find_one({"_id":domain_id}):
+                            db_conn.torrents.domain.save({"_id":domain_id})
                         continue
                 except:
                     pass

@@ -227,9 +227,12 @@ class XPath(object):
         return xpath
         
     def get_xpath_torrents(self):
-        find_text = etree.XPath("//a")
-        return  { link.attrib['href']:self.short_xpath(link) for link in reversed(find_text(self.tree)) if 'href' in link.attrib and link.attrib['href'].split("?")[0].endswith(".torrent")}
-        
+        try:
+            find_text = etree.XPath("//a")
+            return  { link.attrib['href']:self.short_xpath(link) for link in reversed(find_text(self.tree)) if 'href' in link.attrib and link.attrib['href'].split("?")[0].endswith(".torrent")}
+        except TypeError:
+            return {}
+            
     def short_xpath(self, match):
         
         parent = match.getparent()

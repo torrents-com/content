@@ -288,10 +288,12 @@ class SiteFreshSpider(TorrentsSpider):
             if response.meta.get('depth', 0) < self.max_depth and self.site in new_item and not any(b in new_item for b in blacklist_fresh):
                 #~ print "YIELD", "[%d]"%response.meta.get('depth', 0), urljoin("http://%s/"%self.site, link.replace("https://", "http://")), "   -   ", response.url
                 
+                is_torrent = site in self.torrent_stores or link.split("?")[0].endswith(".torrent")
+                
                 yield Request(urljoin("http://%s/"%self.site, link.replace("https://", "http://")),
                               meta={'offsite_ttl': ttl,
                                     #~ 'url_discovery': response.url},
                                     'url_discovery': response.url if site == self.site else response.meta['url_discovery'],
                                     'url_discovery2': response.meta['url_discovery'] if site == self.site else response.meta['url_discovery2']},
-                              priority=10 if site in self.torrent_stores or link.endswith(".torrent") else randint(0, 10), dont_filter=False)
+                              priority=10 if site in self.torrent_stores or link.endswith(".torrent") else randint(0, 10), dont_filter=is_torrent)
 

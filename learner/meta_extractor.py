@@ -417,8 +417,16 @@ class MetaExtractor(object):
                         data['tags'] += ",%s" % tags
                     else:
                         data['tags'] = tags
+                        
+        deleted = []
         for k in data:
-            data[k] = HTMLParser().unescape(data[k])
+            if isinstance(data[k], bool):
+                deleted.append(k)
+            else:
+                data[k] = HTMLParser().unescape(data[k])
+        
+        for k in deleted:
+            del data[k]
             
             
         return data

@@ -161,6 +161,9 @@ def get_schema(data):
     return "torrent"
 
 def is_synonyms( s1, s2):
+    if not s1 or not s2:
+        return True
+    
     if "other" in [s1,s2]:
         return True
     if s1 in synonyms:
