@@ -197,9 +197,6 @@ class SiteSpider(TorrentsSpider):
                         me = MetaExtractor(response.meta['url_discovery2'])
                         extract = me.extract()
                     
-                    
-                    
-                    
                     if extract:
                         if ("size" in extract and ((float(extract['size']) / size)>1.01 or (float(extract['size']) / size)<0.99)) or   \
                             ("infohash" in extract and extract['infohash'].lower() != info['infohash'].lower()):

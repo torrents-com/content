@@ -7,6 +7,8 @@ from base64 import b64decode, b32decode
 from meta import tags
 from bencode import bdecode, bencode
 from hashlib import sha1
+from pprint import pprint
+from math import ceil
 
 config = {}
 execfile(os.path.join(os.path.dirname(__file__),"learn.conf"), config)
@@ -97,12 +99,15 @@ class RedirctHandler(urllib2.HTTPRedirectHandler):
 
     http_error_301 = http_error_303 = http_error_307 = http_error_302
         
-def download_url(url, force = False):
+def download_url(url, force = False, verbose = False):
     
     if not "?" in url:
         url = urllib.quote_plus(url.encode("utf-8"), ":/")
-    #~ print url
-    if len(url) > 140 and not force:
+    if url.startswith("//"):
+        url = "http:%s" % url
+    if verbose:
+        print url
+    if len(url) > 200 and not force:
         return ""
     req_headers = { 'User-Agent' : 'torrents', 
                        'Referer' : url, 
@@ -123,26 +128,33 @@ def download_url(url, force = False):
     while loops < 5:
         try:
             loops += 1
+            if verbose:
+                print "intentando..."
             r = urllib2.urlopen(request, timeout = 30)
             #~ print r.headers
             break
         except (socket.timeout, urllib2.URLError, httplib.BadStatusLine, socket.error), err:
-            #~ print err.code
+            if verbose:
+                print err
             time.sleep(loops *2)
         except urllib2.HTTPError, err:
-            #~ print err.code
+            if verbose:
+                print err.code, err
             if err.code in [404, 410, 403] :
                return "" 
             else:
                time.sleep(loops *2)
-        except ValueError:
-            
+        except ValueError, err:
+            if verbose:
+                print err
             return ""
         except:
             raise
             return ""
     #~ print r
     if r is None:
+        if verbose:
+            print "No se pudo descargar"
         return ""
     
     
@@ -373,21 +385,37 @@ def torrent_info(content_raw):
 
     return info
 
-def is_same_torrent(extract, info):
+def is_same_torrent(extract, info, verbose = False):
     """ check metadata match """
     try:
+        if verbose:
+            pprint(extract)
+            pprint(info)
+            
         if ("size" in extract and ((float(extract['size']) / info['size'])>1.01 or (float(extract['size']) / info['size'])<0.99)) or   \
             ("infohash" in extract and extract['infohash'].lower() != info['infohash'].lower()):
+            if verbose:
+                print "No coincide ih o size"
             return False
         else:
             #the words of title must be in the torrent
             if 'title' in extract:
                 words = [w for w in re.findall(r"[\w']+", extract['title']) if len(w)>3]
-                words_torrent = list(set(w for w in re.findall(r"[\w']+", "%s %s" % (info['filedir'] if 'filedir' in info else '', info['filepaths'])) if len(w)>3))
+                words_torrent = list(set(w for w in re.findall(r"[\w']+", "%s %s" % (info['filedir'] if 'filedir' in info else '', info['filepaths'])) if len(w)>2))
                 
-                if  sum(w in words_torrent for w in words) < len(words) / 2:
+                if verbose:
+                    print "WORDS"
+                    pprint(words)
+                if verbose:
+                    print "WORDS TORRENTS"
+                    pprint(words_torrent)
+                
+                if  sum(w in words_torrent for w in words) < (ceil(float(len(words)) / 2)):
+                    if verbose:
+                        print "el torrent no contiene palabras del fichero"
                     return False
-                
+        if verbose:
+            print "coinciden"
         return True
     except:
         print "*"*22

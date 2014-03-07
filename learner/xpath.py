@@ -8,6 +8,7 @@ from lxml import etree
 from utils import element_2_str, ugly_id
 from meta import tags
 import HTMLParser
+from meta import extract_infohash
 
 
 class XPath(object):
@@ -27,6 +28,9 @@ class XPath(object):
                     self.tree = None
                     return None
                 time.sleep(loops * 2)
+            except UnicodeError:
+                print url
+                raise
                 
         self.blacklist_id = ['lang', 'comment', 'browse', 'footer']
         for t in tags.values():
@@ -229,7 +233,11 @@ class XPath(object):
     def get_xpath_torrents(self):
         try:
             find_text = etree.XPath("//a")
-            return  { link.attrib['href']:self.short_xpath(link) for link in reversed(find_text(self.tree)) if 'href' in link.attrib and link.attrib['href'].split("?")[0].endswith(".torrent")}
+            def like_torrent(href):
+                words_download = ['/down/', '/download/', 'download.php']
+                return href.endswith(".torrent") or extract_infohash(href) or any(w in href for w in words_download) 
+                
+            return  { link.attrib['href']:self.short_xpath(link) for link in reversed(find_text(self.tree)) if 'href' in link.attrib and like_torrent(link.attrib['href'].split("?")[0])}
         except TypeError:
             return {}
             
@@ -296,10 +304,13 @@ class XPath(object):
     
     def get_xpath_img(self, img):
 
+        if not self.tree:
+            return None
+
         find_text = etree.XPath("//img")
         
-        
         matches =  [text for text in find_text(self.tree) if "src" in text.attrib and "/".join(img.split("/")[1:]) in text.attrib['src'] ]
+            
         #~ matches =  [text for text in find_text(self.tree)  ]
         
        

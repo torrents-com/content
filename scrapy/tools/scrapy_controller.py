@@ -92,9 +92,12 @@ def launch(spider, running, ok = True):
                 
                 #si fue lanzado en la anterior elimina estado
                 if l in site_last_launched:
-                    shutil.rmtree(jobdir)
-                    print "Estado de %s reiniciado" % l
-                    exit()
+                    try:
+                        shutil.rmtree(jobdir)
+                        print "Estado de %s reiniciado" % l
+                    except OSError:
+                        pass
+                    
                 else:
                     site_launched.append(l)
                 

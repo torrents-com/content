@@ -17,7 +17,7 @@ import re
 
 # generic tags
 tags = {
-    "category" : ["movie", "movies", "series", "porn", "adult", "xxx", "tv", "tv shows", "anime", "video", "music", "game", "games", "software", "applications", 
+    "category" : ["movie", "movies", "series", "porn", "adult", "xxx", "tv", "tv shows", "anime", "video", "music", "game", "games", "software", "applications", "apps"
                 "books", "ebooks", "mobile", "picture", "image", "videos", "other", "others"]
     ,"genre_v" : ["action", "adult", "comedy", "crime", "drama", "thriller", "horror", "documentary", "sci-fi", "scifi", "sci fi", "romance",
             "fantasy", "family", "mystery", "adventure", "reality", "cartoons", "animation", "biography"]
@@ -73,7 +73,10 @@ synonyms = {
     "books": "book",
     "movie": "series",
     "games": "game",
-    "movies": "movie"
+    "movies": "movie",
+    "tv": "movie",
+    "anime": "movie",
+    "music": "movie"
 }
 
 
@@ -166,6 +169,9 @@ def is_synonyms( s1, s2):
     
     if "other" in [s1,s2]:
         return True
+    s1 = s1.lower()
+    s2 = s2.lower()
+    
     if s1 in synonyms:
         return s2 in synonyms[s1]
     if s2 in synonyms:

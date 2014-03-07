@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import time, pymongo, os
+import time, pymongo, os, operator
 from xpath import XPath
 from utils import u, download_url
 from meta import *
@@ -65,15 +65,18 @@ class MetaExtractor(object):
                 rt.append(link)
                 
         return rt
-                
-            
+        
+        
     def extract(self):
         
-        if not self.ok or self.len_url != len(self.url.split("/")):
+        if  not self.ok or self.len_url != len(self.url.split("/")):
+            print self.len_url
+            print "None(1)"
             return None
         
         xpath = XPath(self.url)
         if xpath is None:
+            print "None(2)"
             return None
             
         mds = {}
@@ -118,7 +121,11 @@ class MetaExtractor(object):
                     #Para que un valor se considere seguro al menos un 50% de las apariciones han tenido que ser ahí
                     safety_val = sum(c for c in self.domain['md'][md]['all'].values() if c > 1) * 0.3
                     
-                    for xp in self.domain['md'][md]['all']:
+                    xps = self.domain['md'][md]['all']
+                    sorted_xp = reversed(sorted(xps.iteritems(), key=operator.itemgetter(1)))
+                    
+                    for xp_tuple in sorted_xp:
+                        xp = xp_tuple[0]
                         try:
                             if "comment" in xp:
                                 #para que no se lie con comentarios
@@ -171,7 +178,7 @@ class MetaExtractor(object):
                     #~ print is_script(extract)
                 
                 _md = {}
-                
+                #~ print md, extracts
                 if safety:
                     #~ print md, extracts
                     safety = is_valid_meta(extract, md)
@@ -436,6 +443,7 @@ if __name__ == "__main__":
      print urllib.unquote(sys.argv[1]).decode("utf-8")
      
      print "links", me.get_links()
+     
      
      for k,v in me.extract().items():
          print k, v

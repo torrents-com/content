@@ -5,7 +5,7 @@ from xpath import XPath
 from utils import u, download_url, strip_tags
 from meta import *
 from meta_extractor import MetaExtractor
-import sys, os
+import sys, os, urllib2
 from datetime import datetime
 from raven import Client
 
@@ -37,6 +37,29 @@ try:
             print domain['_id'], " no es valido"
             rs[domain['_id']] = False
             continue
+        
+        
+        
+        try:
+            url_redir = urllib2.urlopen("http://%s" % domain['_id']).geturl()
+            if domain['_id'][-1] == "/" and url_redir[-1] != "/":
+                url_redir = "%s/" % url_redir
+            if domain['_id'][-1] != "/" and url_redir[-1] == "/":
+                url_redir = url_redir[:-1]
+
+
+            print domain['_id']
+            print url_redir
+            if url_redir != "http://%s" % domain['_id']:
+                print "buscando duplicado... "
+                #Si a la que redirecciona la tenemos este no es valido
+                if db_conn.torrents.domain.find_one({"_id":url_redir.split("//")[1]}):
+                    print domain['_id'], " no es valido por duplicado"
+                    rs[domain['_id']] = False
+                    continue
+        except:
+            pass
+        
             
         loop = 0
         for url in domain['tp']:
@@ -52,8 +75,14 @@ try:
                 print "no se ha podido extraer de %s"%url
                 del data[url]
                 continue
+                
+        if not data:
+            #No es valido ni lo va a ser pero se ha intentado
+            print domain['_id'], " no es valido"
+            rs[domain['_id']] = False
+            continue
         
-        if not data[url]:
+        if not url in data or not data[url]:
             print "no se ha podido extraer de %s"%url
             continue
             
@@ -98,7 +127,7 @@ try:
                     
             
             #comprueba que no haya incongruencias
-            if "genre" in item and "category" in item and item['category'] != get_category_from_genre(item['genre']) and not is_synonyms(item['category'], get_category_from_genre(item['genre'])):
+            if "genre" in item and "category" in item and item['category'].lower() != get_category_from_genre(item['genre']) and not is_synonyms(item['category'], get_category_from_genre(item['genre'])):
                 print "INCONGRUENCIA genre ", item['genre'], item['category'], get_category_from_genre(item['genre'])
                 print url
                 rs[domain['_id']] = False
@@ -115,11 +144,14 @@ try:
                 
                 #borra lo aprendido para que vuelva a empezar
                 print "Borrando lo aprendido"
+                print "Comprobar..."
+                exit()
+                
                 db_conn.torrents.domain.update({"_id":domain['_id']},{"$unset":{"md":"","tp":""}})
                 
                 break
                 
-            if "subcategory" in item and "category" in item and item['category'] != get_category_from_subcategory(item['subcategory']) and not is_synonyms(item['category'], get_category_from_subcategory(item['subcategory'])):
+            if "subcategory" in item and "category" in item and item['category'].lower() != get_category_from_subcategory(item['subcategory']) and not is_synonyms(item['category'], get_category_from_subcategory(item['subcategory'])):
                 print "INCONGRUENCIA subcategory", item['subcategory'], item['category'], get_category_from_subcategory(item['subcategory'])
                 print url
                 rs[domain['_id']] = False
@@ -135,6 +167,9 @@ try:
                 
                 #borra lo aprendido para que vuelva a empezar
                 print "Borrando lo aprendido"
+                print "Comprobar..."
+                exit()
+                
                 db_conn.torrents.domain.update({"_id":domain['_id']},{"$unset":{"md":"","tp":""}})
                 
                 break
@@ -177,14 +212,40 @@ try:
                                 #~ print "*" * 32
                                 #~ print db_conn
                                 #~ print col_domain
-                                print url
-                                print data[url]
+                                try:
+                                    print url
+                                except:
+                                    pass
+                                #~ print data[url]
                                 #~ print strip_tags(data[url][key]) == strip_tags(val)
                                 s1 = repr(strip_tags(val))
                                 print "No coincide un metadato ", key, " el viejo ", "\n|%s|" % s1
+                                s2 = None
                                 if key in data[url]:
                                     s2 = repr(strip_tags(data[url][key]))
                                     print "\n el nuevo ",  "\n|%s|" % s2
+                                    
+                                #eliminando metadato no válido
+                                #~ deleted = False
+                                #~ if key in domain['md']:
+                                    #~ db_conn.torrents.domain.update({"_id":domain['_id']} ,{"$unset":{"md." + key:""}})
+                                    #~ col_domain.update({"_id":url} ,{"$unset":{"test":""}})
+                                    #~ deleted = True
+                                #~ else:
+                                    #~ if s2:
+                                        #~ for k, v in data[url].items():
+                                            #~ if k in domain['md'] and (s2.lower() in v.lower() or v.lower() in s2.lower()):
+                                                #~ db_conn.torrents.domain.update({"_id":domain['_id']} ,{"$unset":{"md." + k:""}})
+                                                #~ col_domain.update({"_id":url} ,{"$unset":{"test":""}})
+                                                #~ deleted = True
+                                
+                                #~ if not deleted:
+                                    #~ #Probablemente sea la categoría
+                                    #~ db_conn.torrents.domain.update({"_id":domain['_id']} ,{"$unset":{"md.category":""}})
+                                    #~ col_domain.update({"_id":url} ,{"$unset":{"test":""}})
+                                
+                                
+                                
                                 
                                 #~ pos = 0
                                 #~ for c in s1:
@@ -195,8 +256,8 @@ try:
                                     #~ pos += 1
                                 #~ exit()
                     
-                    if domain['_id'] in rs and not rs[domain['_id']]:
-                        break 
+                        #~ if domain['_id'] in rs and not rs[domain['_id']]:
+                            #~ break 
                     
                     #~ rs[domain['_id']] = (now - test['fs']).days > 2
                     rs[domain['_id']] = (now - test['fs']).total_seconds() > 60 * 30

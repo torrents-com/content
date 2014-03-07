@@ -12,6 +12,8 @@ from xpath import XPath
 from PIL import Image
 from datetime import datetime
 from raven import Client
+from urlparse import urljoin
+import operator
 
 class Domain(object):
     def __init__(self, base_url, logger = None, db_conn = None):
@@ -67,14 +69,14 @@ class Domain(object):
         #Localiza paginas del sitio candidatas
         if not self.locate_torrent_pages():
             return False
-        #analiza sus diferencias y extrae metadatos
+        #~ #analiza sus diferencias y extrae metadatos
         if self.get_metas() is None:
             #Alguna url incorrecta. Vuelve a empezar
             self.logger.info("Alguna url ya no es valida. Relocalizando...") 
             return self.learn()
-            #~ 
-        #~ self.get_image()
-        #~ self.get_category()
+            
+        self.get_image()
+        self.get_category()
         self.locate_links()
         
     
@@ -106,11 +108,13 @@ class Domain(object):
         
         if html is None or len(html) == 0:
             self.logger.info("%s: html vacio!" % url)
+            print "%s: html vacio!" % url
             return False
         
         blacklist_url = ["search", "category", "browse"]
         if any([w in url for w in blacklist_url]):
             self.logger.info("blacklist en la url")
+            print "blacklist en la url"
             return False 
                 
         #Es una página de torrrent si solo tiene enlaces a un unico torrent(enlaces al .torrent o al magnet)
@@ -118,6 +122,7 @@ class Domain(object):
             doc = BeautifulSoup(html)
         except:
             self.logger.info("No procesado por beautifulsoup")
+            print("No procesado por beautifulsoup")
             return False
         
         torrents = []
@@ -143,7 +148,7 @@ class Domain(object):
             return False
         
         #Alguna palabra de esta lista no debe estar
-        blacklist = ["results", "torrent found", "torrents found"]
+        blacklist = ["torrent found", "torrents found"]
         if any([w in visible_text for w in blacklist]):
             self.logger.warning("tiene blacklist en el contenido")
             return False
@@ -167,33 +172,78 @@ class Domain(object):
         #~ return True
         matrix = []
         bads = []
+        #quitando el final(comunmente el nombre, deben aparecer el mismo número de "_" y "-"
+        matrix_ =[]
+        matrix_g =[]
+        
+        name_in_last = -2 if self.urls_torrent_page.keys()[0].endswith("/") else -1
+        
         for url in self.urls_torrent_page:
             matrix.append(url.split("/"))
+            matrix_.append("/".join(url.split("/")[:name_in_last]).split("_"))
+            matrix_g.append("/".join(url.split("/")[:name_in_last]).split("-"))
+            
         
         #Se queda solo con los tamaños más comunes
         sizes = {}
+        sizes_ = {}
+        sizes_g = {}
+        
+        
         for m in matrix:
             sz = str(len(m))
             if not sz in sizes:
                 sizes[sz] = 0
             sizes[sz] += 1
+        for m in matrix_:
+            sz = str(len(m))
+            if not sz in sizes_:
+                sizes_[sz] = 0
+            sizes_[sz] += 1
+        for m in matrix_g:
+            sz = str(len(m))
+            if not sz in sizes_g:
+                sizes_g[sz] = 0
+            sizes_g[sz] += 1
         
-        
+
         max_count = 0
         for c, count in sizes.items():
             if count > max_count:
                 size = int(c)
-                max_count = size
+                max_count = count
+        
+        max_count = 0
+        for c, count in sizes_.items():
+            if count > max_count:
+                size_ = int(c)
+                max_count = count
+        
+        max_count = 0
+        for c, count in sizes_g.items():
+            if count > max_count:
+                size_g = int(c)
+                max_count = count
         
         
         #descarta urls por no ser homogeneas
         for url in self.urls_torrent_page:
+            if len("/".join(url.split("/")[:name_in_last]).split("_")) != size_:
+                self.logger.info( "bad size_:%s [%d] %s"%(size_, len("/".join(url.split("/")[:name_in_last]).split("_")), url))
+                bads.append(url)
+            if len("/".join(url.split("/")[:name_in_last]).split("-")) != size_g:
+                self.logger.info( "bad size-g:%s [%d] %s"%(size_g, len("/".join(url.split("/")[:name_in_last]).split("-")), url))
+                bads.append(url)
             if len(url.split("/")) != size:
                 self.logger.info( "bad size:%s [%d] %s"%(size, len(url.split("/")), url))
                 bads.append(url)
             if len(re.findall(r"[\w']+", url.replace(self.base_url,"").replace("_"," "))) < 5:
                 self.logger.info("bad pocas palabras:%s"%(url))
                 bads.append(url)
+                
+        
+        starts = {}
+        
         
         #Si todas son malas no se va a poder hacer nada mejor, se deja pasar
         if len(bads) < self.num_candidates:
@@ -718,6 +768,9 @@ class Domain(object):
         
         blacklist = ["avatar", "promo", "category", "categories", "user"]
         
+        domain = self.get_id()
+        images = {}
+        
         for url in self.urls_torrent_page:
             self.logger.info("Analizando %s en busca de imagenes [%d/%d]"%(url, loop, len(self.urls_torrent_page)))
             loop += 1
@@ -725,14 +778,43 @@ class Domain(object):
                 #~ break
             doc = BeautifulSoup(download_url(url))
             imgs = []
+
+            xpath = XPath(url)
+            title = None
             
+            if xpath:
+            
+                if 'title' in self.metas:
+                    for xp in self.metas['title']['all']:
+                        extract = xpath.extract(xp)
+                        rt = is_title(extract, url)
+                        if rt:
+                            title = extract
+                                
+                                
             for img in doc("img"):
+                
+                #~ print title, img.get("alt"), img.get("src")
+                
+                
+                if img.get("alt") and title and title in img.get("alt"):
+                    images[url] = {"img":img.get("src"), "xpath":xpath.get_xpath_img(clean_url_img(img.get("src"), domain))}
+                    self.logger.info("Imagen localizada %s"%images[url])
+                    #the one
+                    imgs = [img.get("src")]
+                    break
+                
                 imgs.append(img.get("src"))
-            data[url] = imgs
+                
             
+            
+            data[url] = imgs
+                
         
         commons = []
-        images = {}
+        
+        
+        
         
         for url in data:
             for img in data[url]:
@@ -755,8 +837,6 @@ class Domain(object):
                 #~ break
             img_candidates = {}
             
-            domain = self.get_id()
-            
             for img in data[url]:
                 if not img in commons and not ".." in img and not any([w in img.lower() for w in blacklist]):
                     try:
@@ -778,18 +858,26 @@ class Domain(object):
                             if width >= 100 or height >= 100:
                                 img_candidates[img] = "%sx%s"%(width, height)    
                         
-                        #Si se repiten tamaño se anulan
+                       
 
                     except IOError as e:
                         self.logger.error("IOError %s: %s "%(e, img))
                         pass
+                        
             
             #~ print img_candidates
+             #Si se repiten tamaño se anulan
+            def size_equal(s1, s2):
+                ss1 = s1.split("x")
+                ss2 = s2.split("x")
+                return abs(int(ss1[0])-int(ss2[0])) < 3 and abs(int(ss1[1])-int(ss2[1])) < 3
+                
+            #~ pprint.pprint(img_candidates)
             no_candidates = []
             for img in img_candidates:
                 size = img_candidates[img]
                 for img2 in img_candidates:
-                    if img != img2 and size == img_candidates[img2]:
+                    if img != img2 and size_equal( size, img_candidates[img2]):
                         no_candidates.append(img)
             
             
@@ -797,17 +885,23 @@ class Domain(object):
                 if no in img_candidates:
                     del img_candidates[no]
             
+            
+            #~ pprint.pprint(img_candidates)
             no_candidates = []
             if len(img_candidates) > 1:
                 #Intenta excluir las que no son del propio dominio
                 for img in img_candidates:
                     if not domain in img:
                         no_candidates.append(img)
-                
+            
+            
+            
             for no in no_candidates:
                 if no in img_candidates:
                     del img_candidates[no]
 
+            
+    
             images[url] = None    
             if len(img_candidates) == 1:
                 #Imagen obtenida
@@ -818,6 +912,7 @@ class Domain(object):
                 images[url] = {"img":img, "xpath":xpath.get_xpath_img(img)}
                 
                 self.logger.info("Imagen localizada %s"%images[url])
+                
             
         xpaths = {}
         #Recuenta todos los xpaths que han aparecido
@@ -850,7 +945,6 @@ class Domain(object):
             return current_xpath
         
         
-        
         return self.get_image(mode + 1)
     
     
@@ -859,15 +953,15 @@ class Domain(object):
         
         #~ print "****************************"
         #~ print self.metas['category']
-        
+        if 'category' in self.metas and 'all' in self.metas['category'] and sum(v for v in self.metas['category']['all'].values()) > (len(self.urls_torrent_page)/3):
+            return True
+            
         
         if not self.urls_torrent_page:
             return False
         
         blacklist = ["user", "download", ".torrent","magnet", "api", "about", "privacy", "register", "contact", "recover"
                 , "latest", "popular", "request", "rss", "faq"]
-    
-        
         
         data = {}
         for url in self.urls_torrent_page:
@@ -973,8 +1067,10 @@ class Domain(object):
                     _all[xp] += 1
                     #~ self.metas['category'] = xp
                     #~ return xp
-                
-                extract = XPath(url).extract(xp)
+                try:
+                    extract = XPath(url).extract(xp)
+                except:
+                    continue
                 
                 
                 if len(extract) > 0 and is_category(extract):
@@ -1011,14 +1107,12 @@ class Domain(object):
     
     def locate_links(self):
         """download all torrents and get xpaths of torrent links"""
-        
         links = {}
         loop = 0
         for url in self.urls_torrent_page:
+            
             self.logger.info("Buscando enlaces en %s [%d/%d]"%(url, loop, len(self.urls_torrent_page)))
             loop += 1
-            
-            
             
             xpath = XPath(url)
             
@@ -1026,13 +1120,18 @@ class Domain(object):
             
                 data = {}
                 #extrae datos que tambien vienen dentro del torrent
-                for key in ['size', 'infohash', 'title']:
-                    if key in self.metas:
-                        for xp in self.metas[key]['all']:
+                for k in ['size', 'infohash', 'title']:
+                    if k in self.metas:
+                        xps = self.metas[k]['all']
+                        sorted_xp = reversed(sorted(xps.iteritems(), key=operator.itemgetter(1)))
+                        for xp_tuple in sorted_xp:
+                            xp = xp_tuple[0]
                             extract = xpath.extract(xp)
-                            rt = is_valid_meta(extract, key)
+                            #~ print "\t", k, extract, xp
+                            rt = is_valid_meta(extract, k)
                             if rt:
-                                data[key] = extract if key == "title" else rt
+                                data[k] = extract if k == "title" else rt
+                                break
                 
                 
                 
@@ -1040,9 +1139,13 @@ class Domain(object):
                 #y se asegura de que coincidan
                 for url_torrent, xp in xpath.get_xpath_torrents().items():
                     
-                    print url_torrent, xp
                     
-                    tr = download_url(url_torrent, force = True)
+                    url_torrent = urljoin(self.base_url, url_torrent)
+                    
+                    #~ print "@"*22
+                    #~ print url_torrent, xp
+                    
+                    tr = download_url(url_torrent, force = True) #, verbose = True)
                     if tr:
                         #~ print tr
                         #~ print len(tr)
@@ -1050,14 +1153,16 @@ class Domain(object):
                             info = torrent_info(tr)
                         except:
                             continue
-                        if is_same_torrent(data, info):
+                        if is_same_torrent(data, info): #, verbose = True):
                             if not xp in links:
                                 links[xp] = 0
                             #~ print xp
                             links[xp] += 1
                 
-                self.metas['links'] = {}        
-                self.metas['links']['all'] = links
+                data[url] = links
+            self.metas['links'] = {}        
+            self.metas['links']['all'] = {k:v for k,v in links.items() if v>(max(v for v in links.values()) / 3)}
+                
         
 if __name__ == "__main__":
     
@@ -1069,7 +1174,11 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and not "no-crawler" in sys.argv:
         for do in sys.argv[1:]:
             d = Domain(do, db_conn = db_conn)
+            #~ url = "http://extratorrent.cc/torrent/2738131/Babes+-+Shazia+Sahari++%2A%2A++NEW++9+july+2012++%2A%2A++HD+720.html"
+            #~ print len(download_url(url, verbose= True))
+            #~ print d.is_torrent_page(download_url(url), url)
             d.learn()
+            d.save()
     else:
         try:
             for domain in db_conn.torrents.domain.find():                
