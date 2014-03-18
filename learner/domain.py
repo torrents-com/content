@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import time, re, pprint, random, urllib2
+import time, re, random, urllib2
 import sys
 from utils import download_url, save_tmp, clean_url_img, u,element_2_str, get_xpath_from_soup_object, torrent_info, is_same_torrent
 from meta import *
@@ -13,6 +13,7 @@ from PIL import Image
 from datetime import datetime
 from raven import Client
 from urlparse import urljoin
+from pprint import pprint
 import operator
 
 class Domain(object):
@@ -107,8 +108,11 @@ class Domain(object):
     def is_torrent_page(self, html, url):
         
         if html is None or len(html) == 0:
-            self.logger.info("%s: html vacio!" % url)
-            print "%s: html vacio!" % url
+            try:
+                self.logger.info("%s: html vacio!" % url)
+                print "%s: html vacio!" % url
+            except:
+                pass
             return False
         
         blacklist_url = ["search", "category", "browse"]
@@ -339,7 +343,6 @@ class Domain(object):
             strings = []
             for string in doc.body.stripped_strings:
                 strings.append(string)
-                
             data[url] = strings
             
         map_str = []
@@ -407,13 +410,19 @@ class Domain(object):
             next_is_description = False
             
             doc = BeautifulSoup(download_url(url))
-
-
-            if len(doc("h1"))> 0 and is_title(doc("h1")[0].string, url, full = True):
-                metadata['title'] = doc("h1")[0].string
-            else:
-                if doc("h2") and is_title(doc("h2")[0].string, url, full = True):
-                    metadata['title'] = doc("h2")[0].string
+            try:
+                h1 = doc("h1")[0].stripped_strings.next()
+                if len(doc("h1"))> 0 and is_title(h1, url, full = True):
+                    metadata['title'] = h1
+                else:
+                    h2 = doc("h2")[0].stripped_strings.next()
+                    if doc("h2") and is_title(h2, url, full  = True):
+                        metadata['title'] = h2
+            except IndexError:
+                pass
+                    
+            
+            #~ print metadata['title']
             
             meta = {}
             for equal in map_str:
@@ -485,77 +494,84 @@ class Domain(object):
                     pos += 1
                     last_equal = equal
                     continue
-                
-                if search_tags:
-                    tag = is_tag(token)
-                    if tag:
-                        if metadata['tags'] is None or isinstance(metadata['tags'], basestring):
-                            metadata['tags'] = {}
-                        
-                        if not tag in metadata['tags']:
-                            try:
-                                metadata['tags'][tag] = []
-                            except:
-                                print metadata
-                                print metadata['tags']
-                                print tag
-                                raise
-                        if not token in metadata['tags'][tag]:
-                            metadata['tags'][tag].append(token)
-                
-                
-                if metadata['description'] is None or len(metadata['description']) < len(token):
-                    #busca descripciones cortas salvo que las haya más largas
-                    if len(token) > 100 or next_is_description:
-                        #~ print url
-                        #~ print "--------------"
-                        #~ print "token",token
-                        #~ print "desc_candidate", desc_candidate
-                        if not equal and not is_script(token) and is_description(token):
-                            metadata['description'] = token
-                            #~ print url
-                            #~ print "metadata['description']", metadata['description']
-                        next_is_description = False
-                if "description" in token:
-                    next_is_description = True
-                    
-                if metadata['title'] is None:
-                    if len(token) > 5 and is_title(token, url):
-                        metadata['title'] = token
-
-                if metadata['season'] is None or metadata['episode'] is None:
-                    if len(token) > 3:
-                        se = is_season_episode(token)
-                        if se:
-                            metadata['season'] = {"token" : token, "value" : se['s']}
-                            metadata['episode'] = {"token" : token, "value" : se['e']}
+                if not equal:
+                    if search_tags:
+                        tag = is_tag(token)
+                        if tag:
+                            if metadata['tags'] is None or isinstance(metadata['tags'], basestring):
+                                metadata['tags'] = {}
                             
+                            if not tag in metadata['tags']:
+                                try:
+                                    metadata['tags'][tag] = []
+                                except:
+                                    print metadata
+                                    print metadata['tags']
+                                    print tag
+                                    raise
+                            if not token in metadata['tags'][tag]:
+                                metadata['tags'][tag].append(token)
+                    
+                    
+                    if metadata['description'] is None or len(metadata['description']) < len(token):
+                        #busca descripciones cortas salvo que las haya más largas
+                        if len(token) > 100 or next_is_description:
+                            #~ print url
+                            #~ print "--------------"
+                            #~ print "token",token
+                            #~ print "desc_candidate", desc_candidate
+                            if not equal and not is_script(token) and is_description(token):
+                                metadata['description'] = token
+                                #~ print url
+                                #~ print "metadata['description']", metadata['description']
+                            next_is_description = False
+                            
+                    
+                    if "description" in token:
+                        next_is_description = True
+                        
+                    if metadata['title'] is None:
+                        if len(token) > 5 and is_title(token, url):
+                            metadata['title'] = token
 
-                if metadata['size'] is None:
-                    if len(token) > 2:
-                        z = is_size(token)
-                        if z:
-                            metadata['size'] = {"token" : token, "value":z}
+                    if metadata['season'] is None or metadata['episode'] is None:
+                        if len(token) > 3:
+                            se = is_season_episode(token)
+                            if se:
+                                metadata['season'] = {"token" : token, "value" : se['s']}
+                                metadata['episode'] = {"token" : token, "value" : se['e']}
+                                
 
-                if metadata['infohash'] is None:
-                    if "hash" in token or len(token) == 40:
-                        metadata['infohash'] = extract_infohash(token)
-                
-                if metadata['category'] is None:
-                    if is_category(token):
-                        metadata['category'] = token
-                
-                if metadata['language'] is None:
-                    if is_language(token):
-                        metadata['language'] = token
+                    if metadata['size'] is None:
+                        if len(token) > 2:
+                            z = is_size(token)
+                            if z:
+                                metadata['size'] = {"token" : token, "value":z}
+
+                    if metadata['infohash'] is None:
+                        if "hash" in token or len(token) == 40:
+                            metadata['infohash'] = extract_infohash(token)
+                    
+                    
+                    #~ if metadata['category'] is None:
+                        #~ if is_category(token):
+                            #~ print url
+                            #~ print "\t\t\t", token
+                            #~ print get_xpath_from_soup_object(token)
+                            #~ metadata['category'] = token
+                    
+                    if metadata['language'] is None:
+                        if is_language(token):
+                            metadata['language'] = token
                 
                 pos += 1
                 last_equal = equal
             
+            #~ print
+            #~ print
+            #~ print url
             #~ print metadata
             #~ print "--"
-            #~ exit()
-            
             #~ print url
             #~ if not metadata['tags'] is None:
                 #~ print metadata['tags']
@@ -596,9 +612,11 @@ class Domain(object):
                         except UnicodeDecodeError:
                             #~ print "unicode"
                             return False
+                        
                         if xp is None:
                             #~ print "xp"
                             return False
+                        #~ print "XP", xp
                         extract = xpath.extract(xp)
                         if not extract:
                             #~ print "no extract", token, xp 
@@ -607,7 +625,9 @@ class Domain(object):
                         #~ print ".."
                         #~ print element_2_str(extract)
                         
-                        if len(extract) > 0 or not token.strip() == extract[0].strip():
+                        #~ print "TOKEN-EXTRACT", token.strip(), extract.strip()
+                        
+                        if len(extract) > 0 or not token.strip() == extract.strip():
                             #~ print "[%s][%s]"%(token, extract[0])
                             ok = True
                             if xpath.last_expansive:
@@ -623,12 +643,15 @@ class Domain(object):
                                     return False
 
                             if not ok:
-                                if not token.strip() in extract[0].strip():
-                                    self.logger.error("No coincide %s[%s] para %s"%(xp, extract[0], token))
+                                if not token.strip() in extract.strip():
+                                    print("No coincide %s[%s] para %s"%(xp, extract, token))
+                                    self.logger.error("No coincide %s[%s] para %s"%(xp, extract, token))
                                     raise Exception("Incoherencia xpath")
                                 
                                 #~ self.logger.warning("No se puede extrar el xpath de %s en %s"%(token, url)    )
                                 return False
+                            
+                        
                         
                         id_m = m
                         if m == "tags":
@@ -661,8 +684,12 @@ class Domain(object):
                         
                         #No se guarda nada que cuelgue de comentarios, script o style
                         invalid = ["comment", "script", "style", "select"]
+                        
+                        
                         if not any([w in xp for w in invalid]) :
                             _metadata[id_m] = {"value" : value, "xpath" : xp}
+                            
+                        #~ print "_METADATA", _metadata
                     
                     if type(token) == type([]):
                         for t in token:
@@ -670,8 +697,12 @@ class Domain(object):
                             extract_token(t, t)
                     else:
                         extract_token(token, value)
-                    
-                    
+                
+            #evita confundir description con title
+            if "description" in _metadata and "title" in _metadata:
+                if _metadata['title']['xpath'] == _metadata['description']['xpath']:
+                    del _metadata['description']
+            
             #~ print "%s:%s"%(url, _metadata)
             #~ exit()
             for d in duplicated:
@@ -681,6 +712,9 @@ class Domain(object):
             duplicated = []
             
             rt[url] = { "metadata" : _metadata, "meta" : meta}
+            
+            #~ pprint(rt[url]['metadata'])
+            #~ exit()
             #~ print
             #~ print
             #~ print
@@ -766,7 +800,7 @@ class Domain(object):
         data = {}
         loop = 0
         
-        blacklist = ["avatar", "promo", "category", "categories", "user"]
+        blacklist = ["avatar", "promo", "category", "categories", "user", "ads"]
         
         domain = self.get_id()
         images = {}
@@ -843,7 +877,7 @@ class Domain(object):
                         self.logger.info("Salvando temporal de %s" % img)
                         im = Image.open(save_tmp(img, domain))
                         width, height = im.size
-                        #~ print img, width, height
+                        print img, width, height
                         #ver comentario al principio de la funcion para el comportamiento de mode
                         if mode == 0:
                             if width > 100 and height > 100:
@@ -871,8 +905,11 @@ class Domain(object):
                 ss1 = s1.split("x")
                 ss2 = s2.split("x")
                 return abs(int(ss1[0])-int(ss2[0])) < 3 and abs(int(ss1[1])-int(ss2[1])) < 3
-                
-            #~ pprint.pprint(img_candidates)
+            
+            
+            #~ print "*********"
+            #~ pprint(img_candidates)
+            
             no_candidates = []
             for img in img_candidates:
                 size = img_candidates[img]
@@ -920,7 +957,12 @@ class Domain(object):
             if v is None:
                 continue
             xpath = v['xpath']
-            if not xpath is None:
+            
+            if xpath:
+                #ignora logos
+                if 'logo' in xpath:
+                    continue
+                
                 if not xpath in xpaths:
                     xpaths[xpath] = 0
                 xpaths[xpath] += 1
@@ -951,12 +993,13 @@ class Domain(object):
     def get_category(self):
         
         
-        #~ print "****************************"
-        #~ print self.metas['category']
+        
         if 'category' in self.metas and 'all' in self.metas['category'] and sum(v for v in self.metas['category']['all'].values()) > (len(self.urls_torrent_page)/3):
+            print "****************************"
+            print self.metas['category']
+            print "ya tiene"
             return True
             
-        
         if not self.urls_torrent_page:
             return False
         
@@ -1195,8 +1238,13 @@ if __name__ == "__main__":
                     print u"Ignorando %s por no estar crawleado y haberlo indicado así" % domain['_id']
                     continue
                 #comprueba que el dominio no redirecciona
+                if domain["_id"].endswith("/") and db_conn.torrents.domain.find_one({"_id":domain["_id"][:-1]}):
+                    print u"Ignorando %s por duplicado con /" % domain['_id']
+                    continue
+                
                 try:
                     url = urllib2.urlopen("http://%s" % domain['_id']).geturl()
+                    print url
                     if not domain['_id'] in url:
                         print u"Ignorando %s por redireccionar a otro dominio " % domain['_id']
                         domain_id = url.split("://")[1].replace("www.","")

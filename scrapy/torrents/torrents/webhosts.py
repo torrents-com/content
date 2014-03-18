@@ -115,8 +115,9 @@ def scrap_final_item(response, stats, db, tbl_src, known_data=None, add_candidat
     meta = response.meta['info'].copy() if 'info' in response.meta else {}
     meta.update(meta_last)
    
+    blacklist_fname = ["...", "nbsp", "laquo", "raquo", "aacute", "eacute", "iacute", "oacute", "uacute", "ntilde"]
     
-    blacklist_fname = ["...", "nbsp", "laquo", "raquo", "aacute", "eacute", "iacute", "oacute", "uacute", "ntilde", ]
+    
     
     filename = "" if (fname == 'unknown' or \
                 fname.lower().startswith("download.") or \
@@ -178,11 +179,19 @@ def create_item(date, filename, size, source, url, meta_dirty, tbl_src):
         source = tbl_src.get(server, ("null",-1))[1]
         if source == -1:
             source = create_new_origin(server)[1]
-        print source, url
+        #~ print source, url
         srcs = {source: url}
     
+    ih_meta = format_ih(meta['infohash'] if 'infohash' in meta else meta['torrent:infohash'] if 'torrent:infohash' in meta else None)
     if not 7 in srcs and ('infohash' in meta or 'torrent:infohash' in meta):
-        srcs[7] = format_ih(meta['infohash'] if 'infohash' in meta else meta['torrent:infohash'])
+        srcs[7] = ih_meta
+        
+    if ih_meta and not ih_meta in srcs[7]:
+        print ih_meta
+        print srcs[7]
+        raise Exception("lio")
+        
+    
     
     origins = "||".join("%d:%s" % (source, url) for source, url in srcs.items())
     
@@ -228,8 +237,16 @@ def create_item(date, filename, size, source, url, meta_dirty, tbl_src):
     item['meta'] = '\t'.join(
         ['%s=%s' % (k, meta[k]) for k in keys_w_schema] + \
         ['%s:%s=%s' % (item['schema'], k, meta[k]) for k in keys_wo_schema] + \
-        ['special:%s=%s' % (k, meta[k]) for k in keys_special] + \
-        ['torrent:%s=%s' % (k, meta[k]) for k in keys_torrents])
+        ['special:%s=%s' % (k, meta[k]) for k in keys_special]
+        
+    try:
+        item['meta'] += ['torrent:%s=%s' % (k, meta[k]) for k in keys_torrents])
+    except UnicodeDecodeError:
+        try:
+            item['meta'] += ['torrent:%s=%s' % (k, meta[k].encode("utf-8") for k in keys_torrents])
+        except:
+            item['meta'] += ['torrent:%s=%s' % (k, meta[k].decode("utf-8") for k in keys_torrents])
+        
 
     
 

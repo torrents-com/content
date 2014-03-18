@@ -287,13 +287,16 @@ class SiteSpider(TorrentsSpider):
                     extract = me.extract()
                     if not extract is None:
                         fake_resp, known_data = magnet2resp(magnet, response.url)
-                        for k, v in extract.items():
-                            known_data[2][k] = v.strip()
-                        #~ for k, v in known_data[2].items():
-                            #~ print k, v
-                            
-                        for item in scrap_final(fake_resp, self.crawler.stats, self.db, (self.main_tbl_src, self.tbl_src), known_data):
-                            yield item
+                        
+                        #TODO: match ihs
+                        if extract['infohash'].lower() == known_data[2]['torrent:infohash'].lower():
+                            for k, v in extract.items():
+                                known_data[2][k] = v.strip()
+                            #~ for k, v in known_data[2].items():
+                                #~ print k, v
+                                
+                            for item in scrap_final(fake_resp, self.crawler.stats, self.db, (self.main_tbl_src, self.tbl_src), known_data):
+                                yield item
                             
                         torrents_links = {x for x in all_links if x.split("?")[0].endswith('.torrent')}
                         all_links = torrents_links

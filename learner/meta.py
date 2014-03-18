@@ -76,7 +76,8 @@ synonyms = {
     "movies": "movie",
     "tv": "movie",
     "anime": "movie",
-    "music": "movie"
+    "music": "movie",
+    "applications": ["mobile" , "software"]
 }
 
 
@@ -142,25 +143,33 @@ def get_tags(category):
     
                 
 
-def get_schema(data):
+def get_schema(data, verbose = False):
     "try to get the schema with any metadata"
     
     if 'category' in data and data['category'] in category_schema:
         #direct relation for the category
+        if verbose:
+            print "from category-", data['category']
         return category_schema[data['category']]
     
     if 'genre' in data:
+        if verbose:
+            print "from genre-", data['genre']
         # it seeks in the genres
         if data['genre'] in tags['genre_v'] or  data['genre'] in tags['genre_x']: return "video"
         if data['genre'] in tags['genre_a']: return "audio"
         if data['genre'] in tags['genre_b']: return "book"
         
     if 'quality' in data:
+        if verbose:
+            print "from quality-", data['quality']
         # it seeks in qualities
         if data['quality'] in tags['quality_v']: return "video"
         if data['quality'] in tags['quality_a']: return "audio"
     
     #torrent by default
+    if verbose:
+        print "by default - torrent"
     return "torrent"
 
 def is_synonyms( s1, s2):
@@ -171,11 +180,16 @@ def is_synonyms( s1, s2):
         return True
     s1 = s1.lower()
     s2 = s2.lower()
+    if s1 == s2:
+        return True
     
     if s1 in synonyms:
-        return s2 in synonyms[s1]
+        if s2 in synonyms[s1]:
+            return True 
     if s2 in synonyms:
         return s1 in synonyms[s2]
+    
+    return False
     
 
 def get_category_from_genre(s):
@@ -252,7 +266,7 @@ def is_tag(s):
     return False
     
 def extract_keywords(s):
-    return ",".join([w for w in s.lower().split() if len(w) > 2 and " %s " % w in ",".join([" , ".join(v) for v in tags.values()])])
+    return ",".join(list(set([w for w in s.lower().split() if len(w) > 2 and " %s " % w in ",".join([" , ".join(v) for v in tags.values()])])))
     
 
 def is_script(s, soft = False):
@@ -318,8 +332,7 @@ def is_title(s, url, full = False):
             matches += 1
     count_words = float(len(words))
     
-    
-    return matches == count_words and count_words > 0
+    return matches == count_words and count_words > 0 or (matches > (count_words * 0.7) and count_words>5) 
     #~ return matches > 1 and (count_words * ((count_words-1)/count_words)) <= matches
 
 

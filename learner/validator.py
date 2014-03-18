@@ -198,7 +198,7 @@ try:
                         if key == "description": 
                             #La descripcion la deja pasar
                             continue
-                        if not key in data[url] or strip_tags(data[url][key]) != strip_tags(val):
+                        if not key in data[url] or strip_tags(data[url][key].lower()) != strip_tags(val.lower()):
                             if changes_allowed:
                                 if not key in data[url]:
                                     print "eliminando %s de la url %s" %(key, url)
@@ -225,6 +225,10 @@ try:
                                     s2 = repr(strip_tags(data[url][key]))
                                     print "\n el nuevo ",  "\n|%s|" % s2
                                     
+                                rs[domain['_id']] = False
+                                #elimina todos los tests
+                                col_domain.update({},{"$unset":{"test":""}}, multi = True)
+                                
                                 #eliminando metadato no válido
                                 #~ deleted = False
                                 #~ if key in domain['md']:
@@ -256,8 +260,8 @@ try:
                                     #~ pos += 1
                                 #~ exit()
                     
-                        #~ if domain['_id'] in rs and not rs[domain['_id']]:
-                            #~ break 
+                    if domain['_id'] in rs and not rs[domain['_id']]:
+                        break 
                     
                     #~ rs[domain['_id']] = (now - test['fs']).days > 2
                     rs[domain['_id']] = (now - test['fs']).total_seconds() > 60 * 30

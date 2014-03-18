@@ -9,12 +9,15 @@ from utils import element_2_str, ugly_id
 from meta import tags
 import HTMLParser
 from meta import extract_infohash
+from urlparse import urlsplit
 
 
 class XPath(object):
 
     def __init__(self, url):
         self.url = url
+        self.xpath_home = None
+        self.tree = None
         parser = etree.HTMLParser()
         loops = 0
         ok = False
@@ -22,6 +25,9 @@ class XPath(object):
             try:
                 self.tree = etree.parse(url, parser)
                 ok = True
+            except UnicodeDecodeError:
+                print url
+                return None
             except IOError:
                 loops += 1
                 if loops > 5:
@@ -31,6 +37,7 @@ class XPath(object):
             except UnicodeError:
                 print url
                 raise
+            
                 
         self.blacklist_id = ['lang', 'comment', 'browse', 'footer']
         for t in tags.values():
@@ -45,11 +52,18 @@ class XPath(object):
             last = ""
             images = 0
             
-            if self.tree is None:
+            if not self.tree:
+                print "[extract] self.tree None", self.url
                 return ""
+                
+            
+            #malas maquetaciones, textos dentro de img sin cerrar
+            if xpath.split("/")[-2].startswith("img"):
+                xpath = "/".join(xpath.split("/")[:-2]) + "/" + xpath.split("/")[-1]
+            
+            
             
             for item in etree.XPath(xpath)(self.tree):
-                
                 if isinstance(item, basestring):
                     if item in last:
                         last = ""
@@ -98,9 +112,17 @@ class XPath(object):
             return s
         except ValueError:
             return ""
+    def extract_in_home(self, xp):
+        if not self.xpath_home:
+            parts = urlsplit(self.url)
+            self.xpath_home = XPath("%s://%s" % (parts.scheme, parts.netloc))
+            
+        return self.xpath_home.extract(xp) 
+        
     def get_xpath(self, text_searched):
-
-        if self.tree is None:
+        
+        if not self.tree:
+            print "[get_xpath] self.tree None", self.url
             #No se ha podido actualizar
             return None
 
@@ -119,16 +141,49 @@ class XPath(object):
             matches =  [text for text in find_text(self.tree) if text_searched in text ]
         except ValueError:
             return None
-        #~ print "@@@@@@@@@@@@@@"
-        #~ print text_searched, matches
+        
+        
         
         if not matches:
-            print "No matches"
-            return None
+            try:
+                matches =  [text for text in find_text(self.tree) if text_searched.lower() in text ]
+            except ValueError:
+                return None
+
+            if not matches:
+                try:
+                    matches =  [text for text in find_text(self.tree) if text_searched.upper() in text ]
+                except ValueError:
+                    return None    
+                
+                if not matches:
+            
+                    #~ print text_searched
+                    print "No matches"
+                    return None
             
         match = matches[0]
         
+        
         if len(matches) > 1:
+            bads = []
+            pos = 0
+            for m in matches:
+                if self.extract_in_home("%s/text()" % self.tree.getpath(m.getparent())) == m:
+                    bads.append(pos)
+                pos += 1
+                    
+            
+            for b in bads:
+                try:
+                    del matches[b]
+                except:
+                    print b, matches
+                    
+                
+                
+            match = matches[0]
+            
             #~ index_matches = {}
             for m in matches:
                 #si hay 2 iguales e iguales al texto buscado no es capaz de diferenciar
@@ -150,7 +205,7 @@ class XPath(object):
         xpath = None
         
         parent = match.getparent()
-        
+        #~ print "::", self.tree.getpath(parent)
         
         xpath = "/node()" if expansive else "/text()"
         while not parent is None:
@@ -333,6 +388,8 @@ class XPath(object):
         parent = match.getparent()
         xpath = "/img"
         
+        blacklist_class = ["ads","promo"]
+        
         #~ print self.tree.getpath(match)
         
         while not parent is None:
@@ -347,6 +404,7 @@ class XPath(object):
             #~ print attrib
             #Si tiene clase o id puede que sea suficiente
             if "id" in attrib and not ugly_id(attrib["id"]):
+                
                 _xpath =  "//%s[@id='%s']%s"%(parent.tag, attrib["id"], xpath)
                 find = etree.XPath(_xpath)
                 #~ print find
@@ -355,6 +413,9 @@ class XPath(object):
                         return _xpath
 
             if "class" in attrib and not ugly_id(attrib["class"]):
+                if any(attrib['class'].startswith(b) for b in blacklist_class):
+                    print "img blacklist"
+                    return None
                 if len(etree.XPath("//*[@class='%s']" % attrib['class'])(self.tree)) > 1:
                     parent = parent.getparent()
                     #No es una clase unica

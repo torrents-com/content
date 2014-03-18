@@ -20,8 +20,6 @@ def main():
         #launch learned sites
         launch("site", running_site)
         
-        exit()
-        
         running_site_fresh = {r['spider'].replace("site_fresh_",""):r['id'] for r in smon_utils.get_jobs() if not "site_fresh_deep" in r['spider'] and  "site_fresh" in r['spider']}
         print running_site_fresh
         #launch fresh learned sites
@@ -41,6 +39,7 @@ def main():
         if not any("multisite" in r['spider'] for r in smon_utils.get_jobs()):
             launch("multisite", [], False)
         
+        exit()
         
         #launch discover
         if not "discover_" in running:

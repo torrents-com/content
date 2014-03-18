@@ -142,11 +142,15 @@ class SiteFreshSpider(TorrentsSpider):
                             extract = None
                         else:
                             #the words of title must be in the torrent
-                            words = [w for w in re.findall(r"[\w']+", extract['title']) if len(w)>3]
-                            words_torrent = list(set(w for w in re.findall(r"[\w']+", "%s %s" % (info['filedir'], info['filepaths'])) if len(w)>3))
-                            
-                            if  sum(w in words_torrent for w in words) < len(words) / 2:
-                                extract = None
+                            try:
+                                words = [w for w in re.findall(r"[\w']+", extract['title']) if len(w)>3]
+                                words_torrent = list(set(w for w in re.findall(r"[\w']+", "%s %s" % \
+                                                (info['filedir'] if "filedir" in info else "", info['filepaths'])) if len(w)>3))
+                                
+                                if  sum(w in words_torrent for w in words) < len(words) / 2:
+                                    extract = {}
+                            except UnicodeDecodeError:
+                                extract = {}
                             
                         if extract:
                             for k, v in extract.items():

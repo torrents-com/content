@@ -10,6 +10,7 @@ import sys
 from HTMLParser import HTMLParser
 
 from urlparse import urlsplit
+from pprint import pprint
 
 import urllib
 
@@ -42,6 +43,7 @@ class MetaExtractor(object):
                     self.ok = False
                     
             if not self.ok:
+                
                 return
             
             self.len_url = len(self.domain['tp'][0].split("/"))
@@ -67,10 +69,10 @@ class MetaExtractor(object):
         return rt
         
         
-    def extract(self):
+    def extract(self, verbose = False):
         
         if  not self.ok or self.len_url != len(self.url.split("/")):
-            print self.len_url
+            print self.url
             print "None(1)"
             return None
         
@@ -85,7 +87,8 @@ class MetaExtractor(object):
         lost_safety = 0
         
         for md in self.domain['md']:
-            #~ print "%s:"%md
+            if verbose:
+                print "%s:"%md
             if "@url" in self.domain['md'][md]:
                 pos = self.domain['md'][md].split("[")[1].split("]")[0]
                 #~ print url.split("/")[int(pos)]
@@ -95,7 +98,6 @@ class MetaExtractor(object):
                     data[md] =  ex
                 
             else:
-                
                 extract = ""
                 safety = False
                 if "candidate" in self.domain['md'][md]:
@@ -147,7 +149,8 @@ class MetaExtractor(object):
                                 continue
                             
                             extract = xpath.extract(xp, True)
-                            
+                            if verbose:
+                                print "\t", xp, extract
                             
                             #~ if md == "description":
                                 #~ print
@@ -319,17 +322,16 @@ class MetaExtractor(object):
         for md in mds:
             safety = mds[md]['safety']
             extract = ",".join(set(mds[md]['data']))
-            
-            #~ print md, extract
+
+            #~ print "****", md, extract
             
             if md=="image":
                 if extract != "":
-                    
-                    
                     imgs = re.findall(r'<img[^>]*\ssrc="(.*?)"', extract)
-                    data[md] = imgs[0]
-                    #~ html += u"<br/>\n<b>Imagen%s:</b> %s" % ("(SAFE)" if safety else "", extract)
-                    image = True
+                    if imgs:
+                        data[md] = imgs[0]
+                        #~ html += u"<br/>\n<b>Imagen%s:</b> %s" % ("(SAFE)" if safety else "", extract)
+                        image = True
             else:
                 try:
                     if md == "infohash":
@@ -367,6 +369,25 @@ class MetaExtractor(object):
                 
                     #~ print xp
                     
+         #keywords
+        if title:
+            rt = extract_keywords(title)
+            if rt:
+                data[u"keywords"] = rt
+        
+        if not quality and (title or "keywords" in data):
+            rt = is_quality(title)
+            if rt:
+                data[u"quality"] = rt
+            else:
+                if "keywords" in data:
+                    for kw in data[u"keywords"].split(","):
+                        rt = is_quality(kw)
+                        if rt:
+                            data[u"quality"] = kw
+                            break
+                    
+                    
         if not image and description and "src=" in description:
             imgs = re.findall(r'<img[^>]*\ssrc="(.*?)"', description)
             if len(imgs) > 0:
@@ -395,21 +416,13 @@ class MetaExtractor(object):
                     #~ html += u"<br/>\n<b>category(se):</b> series" 
                     data[u"category"] = "series"
         
-        if not quality and title:
-            rt = is_quality(title)
-            if rt:
-                data[u"quality"] = rt
         
-        #keywords
-        if title:
-            rt = extract_keywords(title)
-            if rt:
-                data[u"keywords"] = rt
+        
+       
             
         
         if data:
             data[u"schema"] = get_schema(data)
-            
             
             if "category" in data:
                 tags = ""

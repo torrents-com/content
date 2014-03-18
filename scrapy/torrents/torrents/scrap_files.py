@@ -45,7 +45,11 @@ def torrent_info(content_raw):
                                         for x in torrent['announce-list'])
         # The "type(x) == list" part is due to common malformed torrents
     else:
-        info['trackers'] = torrent['announce']
+        if 'announce' in torrent:
+            info['trackers'] = torrent['announce']  
+        else:
+            #nodes - dht
+            pass
 
     # Extra step due to some bad torrents that have the zero-width-space char
     info['trackers'] = info['trackers'].replace('\xe2\x80\x8b', '')
@@ -130,18 +134,22 @@ def magnet2resp(magnet_u, url_discovery='unknown', info={}, webcache=True,
                 allow_missing=True):
     "Return a Response and known_data with all the info from the magnet link"
 
-    cdt_m = chardet.detect(magnet_u)["encoding"]
     for x,y in [('&amp;', '&'), ('&lt;', '<'), ('&gt;' , '>')]:
         magnet_u = magnet_u.replace(x, y)
     
-    
-    
-    
+    parts = parse_qs(magnet_u[len('magnet:?'):])  # extract the sections
     try:
-        magnet = HTMLParser().unescape(unquote(magnet_u)).encode('utf-8')
+        if "&" in parts['dn'][0]:
+            magnet = HTMLParser().unescape(unquote(magnet_u)).encode('utf-8')
+        else:
+            magnet = magnet_u.encode('utf-8')  # parse_q doesn't work with unicodes
+            magnet = unquote(magnet)
+        
     except:
+        print "err"
         magnet = magnet_u.encode('utf-8')  # parse_q doesn't work with unicodes
         magnet = unquote(magnet)
+        
     
     
     if not magnet.startswith('magnet:?'):
