@@ -37,14 +37,18 @@ class MetaExtractor(object):
             if force:
                 self.ok = True
             else:
+                
                 if self.domain:
+                    #~ print "OK", self.domain['ok'], self.domain['_id'] 
                     self.ok = self.domain['ok'] if 'ok' in self.domain else False
                 else:
                     self.ok = False
+            
                     
             if not self.ok:
-                
                 return
+            
+            
             
             self.len_url = len(self.domain['tp'][0].split("/"))
             
@@ -72,7 +76,7 @@ class MetaExtractor(object):
     def extract(self, verbose = False):
         
         if  not self.ok or self.len_url != len(self.url.split("/")):
-            print self.url
+            #~ print self.url, self.ok
             print "None(1)"
             return None
         
@@ -215,7 +219,7 @@ class MetaExtractor(object):
                         
                         rt = is_valid_meta(ext, md)
                         if self.debug:
-                            print "ITEM:", ext, extracts, rt
+                            #~ print "ITEM:", ext, extracts, rt
                         
                         #~ if md == "category":
                             #~ print "-----"

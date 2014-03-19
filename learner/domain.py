@@ -1229,7 +1229,7 @@ if __name__ == "__main__":
                     print "Ignorando %s por haberlo intentado hace poco" % domain['_id']
                     continue
                 if 'cko' in domain and domain['cko'] > 5:
-                    print "Por haberlo intentado muchas veces sin exito " % domain['_id']
+                    print "Ignorando %s Por haberlo intentado muchas veces sin exito " % domain['_id']
                     continue
                 if "ok" in domain and domain['ok']:
                     print "Ignorando %s por estar validado" % domain['_id']

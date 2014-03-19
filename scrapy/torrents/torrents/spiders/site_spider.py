@@ -133,11 +133,13 @@ class SiteSpider(TorrentsSpider):
                 url.endswith(self.torrent_page_format['endswith']) and \
                 self.torrent_page_format['count'] == len(url.split("/"))
 
+    def like_torrent(self, url):
+        return url.endswith(".torrent") or "/torrent" in url or "/download/" in url
+
     def parse_sentry(self, response):
         "Return list of new requests or items"
         
-        
-        
+        #~ print "PARSE", response.url
         # Offsite Time-To-Live
         if response.meta.get('offsite_ttl') == 0:
             return
@@ -167,6 +169,8 @@ class SiteSpider(TorrentsSpider):
 
         is_torrent_page = self.is_torrent_page(response.url)
         
+        #~ print "IS_TORRENT_PAGE", is_torrent_page
+        
         #~ if is_torrent_page:
             #~ print response.url
             #~ exit()
@@ -177,7 +181,7 @@ class SiteSpider(TorrentsSpider):
             
             if content in ['text/html', 'text/xml', 'application/xhtml+xml']:
                 pass
-                
+            
             if content == 'application/x-bittorrent' or \
                     content == 'application/octet-stream' or \
                     content == 'application/force-download':
@@ -196,6 +200,7 @@ class SiteSpider(TorrentsSpider):
                     if not extract and response.meta['url_discovery2'] != response.meta['url_discovery2']:
                         me = MetaExtractor(response.meta['url_discovery2'])
                         extract = me.extract()
+                    
                     
                     if extract:
                         if ("size" in extract and ((float(extract['size']) / size)>1.01 or (float(extract['size']) / size)<0.99)) or   \
@@ -273,23 +278,36 @@ class SiteSpider(TorrentsSpider):
 
         known_links = None
         #~ if len(magnets) == 1:
+        
+        
         if is_torrent_page:
             
             me = MetaExtractor(response.url)
-            known_links = me.get_links()
+            known_links_dirty = me.get_links()
+            known_links = None
+            if known_links_dirty:
+                known_links = [l for l in known_links_dirty \
+                            if l.endswith('.torrent') or '/torrent/' in l]
             
+            #~ print "KNWON_LINKS", known_links
             
             if not known_links:
                 
                 #maybe torrent page
                 for magnet in magnets:
+                    
+                    #~ print "MAGNET", magnet
+                    
                     me = MetaExtractor(response.url)
                     extract = me.extract()
+                    
+                    
+                    
                     if not extract is None:
                         fake_resp, known_data = magnet2resp(magnet, response.url)
                         
                         #TODO: match ihs
-                        if extract['infohash'].lower() == known_data[2]['torrent:infohash'].lower():
+                        if 'infohash' in extract and 'torrent:infohash' in known_data[2] and extract['infohash'].lower() == known_data[2]['torrent:infohash'].lower():
                             for k, v in extract.items():
                                 known_data[2][k] = v.strip()
                             #~ for k, v in known_data[2].items():
@@ -303,6 +321,7 @@ class SiteSpider(TorrentsSpider):
                 
             # but don't "return", we continue to yield stuff!
         all_links -= magnets
+        
 
         # Add links guessed, not present in @href's
         #disabled to avoid cross crawling
@@ -327,15 +346,16 @@ class SiteSpider(TorrentsSpider):
             
         #make sure all pages with metadata
         links |= set(x for x in all_links if self.is_torrent_page(x))
-
+        
+        
 
         # Construct the new requests
         for link in links:
-            is_torrent = site in self.torrent_stores or link.split("?")[0].endswith(".torrent")
+            is_torrent = site in self.torrent_stores or self.like_torrent(link)
             
+            #~ print "IS_TORRENT", is_torrent, link
             
-            
-            if is_torrent and not is_torrent_page:
+            if is_torrent and not is_torrent_page and not site in self.torrent_stores:
                 continue
             
             new_url = urljoin("http://%s/"%self.site, link.replace("https://", "http://"))
@@ -349,10 +369,11 @@ class SiteSpider(TorrentsSpider):
                 continue
             
             # Torrent stores
-            if site in self.torrent_stores and (not ":" in link or link.split(":",1)[1] != response.url.split(":",1)[1]):
+            if site in self.torrent_stores and (not ":" in link or not ":" in response.url and not response.url.split(":",1)[1] in link.split(":",1)[1]):
                 continue
                 
             url = urljoin(response.url, link)
+            
             
             # Not interesting
             blacklist = ["/ads", "imdb.com", "static.", "twitter.com", "facebook.com", "amazon.", "youtube.com"]

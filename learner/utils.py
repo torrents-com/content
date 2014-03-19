@@ -316,6 +316,8 @@ def base32_2_hex(s):
     return binascii.hexlify(b32decode(s)).upper()
 
 def format_ih(s):
+    if not s:
+        return None
     if is_base32(s):
         return base32_2_hex(s).upper()
     else:

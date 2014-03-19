@@ -235,19 +235,25 @@ def create_item(date, filename, size, source, url, meta_dirty, tbl_src):
     keys_w_schema = {k for k in set(meta) if ':' in k}  # keys *with* schema
     keys_wo_schema = set(meta) - keys_special - keys_torrents - keys_w_schema - {'schema'}
     item['meta'] = '\t'.join(
-        ['%s=%s' % (k, meta[k]) for k in keys_w_schema] + \
         ['%s:%s=%s' % (item['schema'], k, meta[k]) for k in keys_wo_schema] + \
-        ['special:%s=%s' % (k, meta[k]) for k in keys_special]
+        ['special:%s=%s' % (k, meta[k]) for k in keys_special])
         
-    try:
-        item['meta'] += ['torrent:%s=%s' % (k, meta[k]) for k in keys_torrents])
-    except UnicodeDecodeError:
+    def join_metas(keys):
+        
         try:
-            item['meta'] += ['torrent:%s=%s' % (k, meta[k].encode("utf-8") for k in keys_torrents])
-        except:
-            item['meta'] += ['torrent:%s=%s' % (k, meta[k].decode("utf-8") for k in keys_torrents])
-        
-
+            item['meta'] += '\t'.join(['torrent:%s=%s' % (k, meta[k]) for k in keys])
+        except UnicodeDecodeError:
+            try:
+                item['meta'] += '\t'.join(['torrent:%s=%s' % (k, meta[k].encode("utf-8")) for k in keys])
+            except:
+                try:
+                    item['meta'] += '\t'.join(['torrent:%s=%s' % (k, meta[k].decode("utf-8")) for k in keys])
+                except:
+                    item['meta'] += '\t'.join(['torrent:%s=%s' % (k, meta[k].decode("latin")) for k in keys])
+                
+    
+    join_metas(keys_torrents)
+    join_metas(keys_w_schema)
     
 
     return item
