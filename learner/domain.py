@@ -115,7 +115,7 @@ class Domain(object):
                 pass
             return False
         
-        blacklist_url = ["search", "category", "browse"]
+        blacklist_url = ["/search/", "/category/", "/browse/", "/all/", "/user/"]
         if any([w in url for w in blacklist_url]):
             self.logger.info("blacklist en la url")
             print "blacklist en la url"

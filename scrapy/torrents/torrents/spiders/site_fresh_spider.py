@@ -128,7 +128,7 @@ class SiteFreshSpider(TorrentsSpider):
                     known_data = [unquote(path.split('/')[-1]).decode('utf8'), size, info]
                     me = MetaExtractor(response.meta['url_discovery'])
                     extract = me.extract()
-                    print "extract", response.meta['url_discovery']
+                    #~ print "extract", response.meta['url_discovery']
                     #try 2 jumps back
                     if not extract and response.meta['url_discovery2'] != response.meta['url_discovery2']:
                         print "extract2", response.meta['url_discovery2']

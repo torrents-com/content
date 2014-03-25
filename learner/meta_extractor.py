@@ -77,12 +77,12 @@ class MetaExtractor(object):
         
         if  not self.ok or self.len_url != len(self.url.split("/")):
             #~ print self.url, self.ok
-            print "None(1)"
+            #~ print "None(1)"
             return None
         
         xpath = XPath(self.url)
         if xpath is None:
-            print "None(2)"
+            #~ print "None(2)"
             return None
             
         mds = {}
@@ -219,7 +219,7 @@ class MetaExtractor(object):
                         
                         rt = is_valid_meta(ext, md)
                         if self.debug:
-                            #~ print "ITEM:", ext, extracts, rt
+                            print "ITEM:", ext, extracts, rt
                         
                         #~ if md == "category":
                             #~ print "-----"

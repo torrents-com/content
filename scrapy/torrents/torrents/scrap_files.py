@@ -36,6 +36,8 @@ def torrent_info(content_raw):
 
     # Extract info from torrent
     torrent = bdecode(content_raw)
+    if not 'info' in torrent:
+        return None
     t_info = torrent['info']  # so we write less
 
     # Trackers. Use extension BEP-0012 for multiple trackers if possible

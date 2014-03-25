@@ -70,7 +70,7 @@ synonyms = {
     "porn": "xxx",
     "applications": "software",
     "game": "software",
-    "books": "book",
+    "book": ["books", "ebooks"],
     "movie": "series",
     "games": "game",
     "movies": "movie",

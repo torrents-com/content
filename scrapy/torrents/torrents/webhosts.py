@@ -241,15 +241,15 @@ def create_item(date, filename, size, source, url, meta_dirty, tbl_src):
     def join_metas(keys):
         
         try:
-            item['meta'] += '\t'.join(['torrent:%s=%s' % (k, meta[k]) for k in keys])
+            item['meta'] += '\t%s'%'\t'.join(['torrent:%s=%s' % (k, meta[k]) for k in keys])
         except UnicodeDecodeError:
             try:
-                item['meta'] += '\t'.join(['torrent:%s=%s' % (k, meta[k].encode("utf-8")) for k in keys])
+                item['meta'] += '\t%s'%'\t'.join(['torrent:%s=%s' % (k, meta[k].encode("utf-8")) for k in keys])
             except:
                 try:
-                    item['meta'] += '\t'.join(['torrent:%s=%s' % (k, meta[k].decode("utf-8")) for k in keys])
+                    item['meta'] += '\t%s'%'\t'.join(['torrent:%s=%s' % (k, meta[k].decode("utf-8")) for k in keys])
                 except:
-                    item['meta'] += '\t'.join(['torrent:%s=%s' % (k, meta[k].decode("latin")) for k in keys])
+                    item['meta'] += '\t%s'%'\t'.join(['torrent:%s=%s' % (k, meta[k].decode("latin")) for k in keys])
                 
     
     join_metas(keys_torrents)

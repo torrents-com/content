@@ -25,13 +25,13 @@ def main():
         #launch fresh learned sites
         launch("site_fresh", running_site_fresh, True)
         #launch fresh not learned sites
-        launch("site_fresh", running_site_fresh, False)
+        #~ launch("site_fresh", running_site_fresh, False)
         running_site_fresh_deep = {r['spider'].replace("site_fresh_deep_",""):r['id'] for r in smon_utils.get_jobs() if "site_fresh_deep" in r['spider']}
         print running_site_fresh_deep
         #launch fresh deep learned sites
         launch("site_fresh_deep", running_site_fresh_deep, True)
         #launch fresh deep not learned sites
-        launch("site_fresh_deep", running_site_fresh_deep, False)
+        #~ launch("site_fresh_deep", running_site_fresh_deep, False)
         running = [r['spider'] for r in smon_utils.get_jobs() if not "site_" in r['spider']]
         
         

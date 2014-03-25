@@ -8,6 +8,7 @@ from meta_extractor import MetaExtractor
 import sys, os, urllib2
 from datetime import datetime
 from raven import Client
+from datetime import datetime
 
 config = {}
 execfile(os.path.join(os.path.dirname(__file__),"learn.conf"), config)
@@ -25,7 +26,12 @@ rs = {}
 
 sentry_client = Client(config['sentry_client'])
 try:
-    for domain in db_conn.torrents.domain.find(_filter):
+    
+    #para evitar cierres del cursor
+    domains = [d for d in db_conn.torrents.domain.find(_filter)]
+    
+    #~ for domain in db_conn.torrents.domain.find(_filter).batch_size(16):
+    for domain in domains:
         data = {}
         #~ print domain['_id']
         filename = "test/%s.html"%domain['_id']
@@ -37,8 +43,6 @@ try:
             print domain['_id'], " no es valido"
             rs[domain['_id']] = False
             continue
-        
-        
         
         try:
             url_redir = urllib2.urlopen("http://%s" % domain['_id']).geturl()
@@ -219,47 +223,48 @@ try:
                                 #~ print data[url]
                                 #~ print strip_tags(data[url][key]) == strip_tags(val)
                                 s1 = repr(strip_tags(val))
-                                print "No coincide un metadato ", key, " el viejo ", "\n|%s|" % s1
+                                
+                                try:
+                                    print "No coincide un metadato ", key, " el viejo ", "\n|%s|" % s1
+                                except:
+                                    pass
+                               
                                 s2 = None
                                 if key in data[url]:
+                                    f = open(os.path.join(os.path.dirname(__file__),"%s_%s" % (domain['_id'], datetime.now().strftime("%Y%m%d%H"))), "w")
+                                    f.write("*"*32)
+                                    f.write("\n%s\n"%url)   
+                                    f.write("No coincide un metadato %s el viejo |%s|\n" %( key,s1))
+                                    f.write("-".join(data[url].keys())+"\n")
+                                    f.write("-".join(data[url].values())+"\n")
                                     s2 = repr(strip_tags(data[url][key]))
-                                    print "\n el nuevo ",  "\n|%s|" % s2
-                                    
-                                rs[domain['_id']] = False
-                                #elimina todos los tests
-                                col_domain.update({},{"$unset":{"test":""}}, multi = True)
+                                    try:
+                                        print "\n el nuevo ",  "|%s|" % s2
+                                    except:
+                                        pass
+                                    f.write("el nuevo |%s|\n"%(s2))
+                                    f.close()
+                                    #Elimina para todos los metadatos los xpaths con menos apariciones 
+                                    for md in domain['md']:
+                                        _min = 99
+                                        xp_deleted = None
+                                        for xp, count in domain['md'][md].items():
+                                            if count < _min:
+                                                _min = count
+                                                xp_deleted = xp
+                                        
+                                        conn.torrents.domain.update({"_id":domain['_id']} ,{"$unset":{"md.%s.all.%s" % (md, xp_deleted):""}})
+                                        print domain['_id'], md, xp_deleted
+                                        exit()
+                                        
+                                    #invalida
+                                    rs[domain['_id']] = False
+                                    #elimina todos los tests
+                                    col_domain.update({},{"$unset":{"test":""}}, multi = True)
+                                else:
+                                    #No puede comparar. No ha podido extraer o aún no lo ha hecho 
+                                    pass
                                 
-                                #eliminando metadato no válido
-                                #~ deleted = False
-                                #~ if key in domain['md']:
-                                    #~ db_conn.torrents.domain.update({"_id":domain['_id']} ,{"$unset":{"md." + key:""}})
-                                    #~ col_domain.update({"_id":url} ,{"$unset":{"test":""}})
-                                    #~ deleted = True
-                                #~ else:
-                                    #~ if s2:
-                                        #~ for k, v in data[url].items():
-                                            #~ if k in domain['md'] and (s2.lower() in v.lower() or v.lower() in s2.lower()):
-                                                #~ db_conn.torrents.domain.update({"_id":domain['_id']} ,{"$unset":{"md." + k:""}})
-                                                #~ col_domain.update({"_id":url} ,{"$unset":{"test":""}})
-                                                #~ deleted = True
-                                
-                                #~ if not deleted:
-                                    #~ #Probablemente sea la categoría
-                                    #~ db_conn.torrents.domain.update({"_id":domain['_id']} ,{"$unset":{"md.category":""}})
-                                    #~ col_domain.update({"_id":url} ,{"$unset":{"test":""}})
-                                
-                                
-                                
-                                
-                                #~ pos = 0
-                                #~ for c in s1:
-                                    #~ print c
-                                    #~ if c != s2[pos]:
-                                        #~ print "cambia ! ", c
-                                        #~ exit()
-                                    #~ pos += 1
-                                #~ exit()
-                    
                     if domain['_id'] in rs and not rs[domain['_id']]:
                         break 
                     

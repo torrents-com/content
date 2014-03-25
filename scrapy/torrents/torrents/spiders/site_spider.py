@@ -348,17 +348,20 @@ class SiteSpider(TorrentsSpider):
         links |= set(x for x in all_links if self.is_torrent_page(x))
         
         
-
         # Construct the new requests
         for link in links:
             is_torrent = site in self.torrent_stores or self.like_torrent(link)
             
             #~ print "IS_TORRENT", is_torrent, link
             
-            if is_torrent and not is_torrent_page and not site in self.torrent_stores:
+            new_url = urljoin("http://%s/"%self.site, link.replace("https://", "http://"))
+            
+            
+            
+            if not self.is_torrent_page(new_url) and is_torrent and not is_torrent_page \
+                    and not site in self.torrent_stores:
                 continue
             
-            new_url = urljoin("http://%s/"%self.site, link.replace("https://", "http://"))
             
             if is_torrent_page and not (is_torrent or self.is_torrent_page(new_url)):
                 continue
@@ -389,8 +392,6 @@ class SiteSpider(TorrentsSpider):
                 
             ttl = self.max_offsite_ttl
         
-            
-            
             #~ print "YIELD", "%s(%s)" % (response.url,is_torrent_page), "->",  "%s(%s)" % (new_url, is_torrent), 10 if is_torrent else 9 if self.is_torrent_page(new_url) else -1
             yield Request(new_url,
                           meta={'offsite_ttl': ttl,
@@ -398,4 +399,4 @@ class SiteSpider(TorrentsSpider):
                                 'url_discovery': response.url if site == self.site else response.meta['url_discovery'],
                                 'url_discovery2': response.meta['url_discovery'] if site == self.site else response.meta['url_discovery2']},
                           priority=10 if is_torrent else 9 if self.is_torrent_page(new_url) else randint(0, 8), dont_filter=is_torrent)
-
+                
