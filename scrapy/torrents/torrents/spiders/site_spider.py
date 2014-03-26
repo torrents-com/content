@@ -191,8 +191,9 @@ class SiteSpider(TorrentsSpider):
                     
                     info = torrent_info(response.body)
                     
-                    size = info['size']
-                    del info['size']
+                    if info:
+                        size = info['size']
+                        del info['size']
                     known_data = [unquote(path.split('/')[-1]).decode('utf8'), size, info]
                     me = MetaExtractor(response.meta['url_discovery'])
                     extract = me.extract()

@@ -102,8 +102,11 @@ def torrent_info(content_raw):
     # Add creation date if present
     if 'creation date' in torrent:
         secs = torrent['creation date']
-        info['creation_date'] = time.strftime('%d-%m-%Y %H:%M:%S',
+        try:
+            info['creation_date'] = time.strftime('%d-%m-%Y %H:%M:%S',
                                               time.localtime(secs))
+        except:
+            info['creation_date'] = "1970-01-01 00:00:00"
 
     # Add nodes (list of host:port) if present (see BEP-0005)
     if 'nodes' in torrent:

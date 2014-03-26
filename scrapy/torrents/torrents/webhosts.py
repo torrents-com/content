@@ -120,6 +120,7 @@ def scrap_final_item(response, stats, db, tbl_src, known_data=None, add_candidat
     
     
     filename = "" if (fname == 'unknown' or \
+                fname.lower().startswith("file.php") or \
                 fname.lower().startswith("download.") or \
                 fname.lower().startswith("download_direct.") or \
                 any(b in fname.lower() for b in blacklist_fname) or \

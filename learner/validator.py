@@ -61,10 +61,13 @@ try:
                     print domain['_id'], " no es valido por duplicado"
                     rs[domain['_id']] = False
                     continue
-        except:
+        except Exception as e:
+            if  "Temporary failure in name resolution" in str(e):
+                print "%s no resuelve" % domain['_id']
+                continue
             pass
         
-            
+        fails = 0
         loop = 0
         for url in domain['tp']:
             try:
@@ -76,10 +79,21 @@ try:
             
             data[url] = me.extract()
             if not data[url]:
-                print "no se ha podido extraer de %s"%url
+                try:
+                    print "no se ha podido extraer de %s"%url
+                except:
+                    print "no se ha podido extraer de $$"
                 del data[url]
+                if fails > 20:
+                    print "Demasiados errores, parece caido..."
+                    break 
+                fails += 1
+                print "%d errores seguidos" % fails
                 continue
-                
+            fails = 0
+            
+            
+            
         if not data:
             #No es valido ni lo va a ser pero se ha intentado
             print domain['_id'], " no es valido"
@@ -236,7 +250,10 @@ try:
                                     f.write("\n%s\n"%url)   
                                     f.write("No coincide un metadato %s el viejo |%s|\n" %( key,s1))
                                     f.write("-".join(data[url].keys())+"\n")
-                                    f.write("-".join(data[url].values())+"\n")
+                                    try:
+                                        f.write("-".join(data[url].values())+"\n")
+                                    except:
+                                        f.write("$$$$$\n")
                                     s2 = repr(strip_tags(data[url][key]))
                                     try:
                                         print "\n el nuevo ",  "|%s|" % s2
@@ -246,16 +263,15 @@ try:
                                     f.close()
                                     #Elimina para todos los metadatos los xpaths con menos apariciones 
                                     for md in domain['md']:
-                                        _min = 99
+                                        
+                                        _min = 40
                                         xp_deleted = None
-                                        for xp, count in domain['md'][md].items():
+                                        for xp, count in domain['md'][md]['all'].items():
                                             if count < _min:
                                                 _min = count
                                                 xp_deleted = xp
                                         
-                                        conn.torrents.domain.update({"_id":domain['_id']} ,{"$unset":{"md.%s.all.%s" % (md, xp_deleted):""}})
-                                        print domain['_id'], md, xp_deleted
-                                        exit()
+                                        db_conn.torrents.domain.update({"_id":domain['_id']} ,{"$unset":{"md.%s.all.%s" % (md, xp_deleted):""}})
                                         
                                     #invalida
                                     rs[domain['_id']] = False
